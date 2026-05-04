@@ -1,0 +1,13 @@
+[
+    {
+        "userID": 13,
+        "email": "boy",
+        "store_name": "basenji",
+        "owner_name": "boyboy",
+        "bank_name": "capitec",
+        "account_name": "senzo",
+        "account_number": "234455555555555",
+        "created_at": "2026-05-04T18:57:23+02:00",
+        "approved": true
+    }
+]
