@@ -29,7 +29,7 @@ An admin panel is also included to manage users and view orders.
 
 ---
 
-### 🛒 Cart & Orders
+###  Cart & Orders
 
 * Add/remove items from cart
 * Session-based cart storage
@@ -37,7 +37,7 @@ An admin panel is also included to manage users and view orders.
 
 ---
 
-### 💳 Payment System
+###  Payment System
 
 * Requires:
 
