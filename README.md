@@ -238,3 +238,5 @@ Developed as a **PHP & MySQL Web Application Project**
 
 This project is for educational purposes.
 
+Here's the link to my git hub project
+https://github.com/RC-WEDE6021-PART-2-AND-PART-3/rc-pta-wede6021-part2-and-3-web.git
