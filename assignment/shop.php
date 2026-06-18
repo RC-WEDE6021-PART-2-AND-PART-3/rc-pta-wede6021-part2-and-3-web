@@ -80,12 +80,14 @@ if (isset($_GET['add'])) {
     }
 }
 
-$clothes = $conn->query("SELECT * FROM tblClothes");
-if ($clothes === false) {
+// Load DB products
+$clothesRes = $conn->query("SELECT * FROM tblClothes");
+if ($clothesRes === false) {
     die("Database error loading products: " . $conn->error);
 }
 
-if ($clothes->num_rows === 0) {
+// If DB empty, seed from local images
+if ($clothesRes->num_rows === 0) {
     $images = getAvailableImages();
     if (!empty($images)) {
         $insert = $conn->prepare("INSERT INTO tblClothes (clothName, price, image) VALUES (?, ?, ?)");
@@ -98,8 +100,42 @@ if ($clothes->num_rows === 0) {
         }
         $insert->close();
     }
-    $clothes = $conn->query("SELECT * FROM tblClothes");
+    $clothesRes = $conn->query("SELECT * FROM tblClothes");
 }
+
+// Read DB rows into array
+$dbProducts = [];
+while ($row = $clothesRes->fetch_assoc()) {
+    $dbProducts[] = [
+        'id' => $row['clothID'] ?? null,
+        'name' => $row['clothName'] ?? ($row['name'] ?? ''),
+        'price' => isset($row['price']) ? (float)$row['price'] : (float)($row['price'] ?? 0),
+        'image' => isset($row['image']) ? ('images/' . $row['image']) : (isset($row['img']) ? $row['img'] : 'images/placeholder.png'),
+        'source' => 'db'
+    ];
+}
+
+// Load seller-uploaded products from JSON and normalize
+$sellerProducts = [];
+$sellersFile = __DIR__ . '/sellers_products.json';
+if (file_exists($sellersFile)) {
+    $sp = json_decode(file_get_contents($sellersFile), true);
+    if (is_array($sp)) {
+        foreach ($sp as $p) {
+            $sellerProducts[] = [
+                'id' => null,
+                'name' => $p['name'] ?? ($p['clothName'] ?? 'Untitled'),
+                'price' => isset($p['price']) ? (float)$p['price'] : 0.0,
+                'image' => !empty($p['img']) ? $p['img'] : 'images/placeholder.png',
+                'source' => 'seller',
+                'meta' => $p,
+            ];
+        }
+    }
+}
+
+// Combined products for display (DB first, then seller uploads)
+$products = array_merge($dbProducts, $sellerProducts);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -156,23 +192,31 @@ if ($clothes->num_rows === 0) {
         <?php endif; ?>
 
         <div class="products">
-            <?php if ($clothes->num_rows === 0): ?>
+            <?php if (empty($products)): ?>
                 <p style="text-align:center; color:#ddd;">No products are available yet.</p>
             <?php else: ?>
-                <?php while ($c = $clothes->fetch_assoc()): ?>
-                    <?php $img = !empty($c['image']) ? $c['image'] : 'placeholder.png'; ?>
+                <?php foreach ($products as $c): ?>
+                    <?php $img = !empty($c['image']) ? $c['image'] : 'images/placeholder.png'; ?>
                     <div class="item">
                         <div class="badge">NEW</div>
-                                <a href="product_detail.php?clothID=<?= (int)$c['clothID'] ?>">
-                                    <img src="images/<?= rawurlencode($img) ?>"
-                                         alt="<?= htmlspecialchars($c['clothName']) ?>"
-                                         class="product-img">
-                                </a>
-                                <h3><a href="product_detail.php?clothID=<?= (int)$c['clothID'] ?>"><?= htmlspecialchars($c['clothName']) ?></a></h3>
-                                <p>R<?= number_format((float)$c['price'], 2) ?></p>
-                                <a class="btn" href="product_detail.php?clothID=<?= (int)$c['clothID'] ?>">View Details</a>
+                        <?php if ($c['source'] === 'db' && !empty($c['id'])): ?>
+                            <a href="product_detail.php?clothID=<?= (int)$c['id'] ?>">
+                                <img src="<?= htmlspecialchars($img) ?>"
+                                     alt="<?= htmlspecialchars($c['name']) ?>"
+                                     class="product-img">
+                            </a>
+                            <h3><a href="product_detail.php?clothID=<?= (int)$c['id'] ?>"><?= htmlspecialchars($c['name']) ?></a></h3>
+                            <p>R<?= number_format((float)$c['price'], 2) ?></p>
+                            <a class="btn" href="product_detail.php?clothID=<?= (int)$c['id'] ?>">View Details</a>
+                        <?php else: ?>
+                            <img src="<?= htmlspecialchars($img) ?>" alt="<?= htmlspecialchars($c['name']) ?>" class="product-img">
+                            <h3><?= htmlspecialchars($c['name']) ?></h3>
+                            <p>R<?= number_format((float)$c['price'], 2) ?></p>
+                            <!-- seller products link to a basic detail view (no clothID) -->
+                            <a class="btn" href="product_detail.php?seller=1&name=<?= urlencode($c['name']) ?>">View Details</a>
+                        <?php endif; ?>
                     </div>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             <?php endif; ?>
         </div>
 
