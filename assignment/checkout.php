@@ -127,11 +127,14 @@ if(isset($_POST['checkout'])){
             $message .= "You can track your order here: " . $trackingUrl . "\n\n";
             $message .= "If you have any questions, reply to this email.\n\nThanks,\nPastimes Clothing";
 
-            $headers = 'From: Pastimes <no-reply@' . ($host) . '>\r\n' .
-                       'Reply-To: support@' . ($host) . "\r\n" .
-                       'Content-Type: text/plain; charset=UTF-8\r\n';
-
-            @mail($userEmail, $subject, $message, $headers);
+            // Use wrapper (prefers PHPMailer when configured)
+            $mailer = __DIR__ . '/lib/mailer.php';
+            if (file_exists($mailer)) require_once $mailer;
+            if (function_exists('send_mail')) {
+                @send_mail($userEmail, $subject, $message);
+            } else {
+                @mail($userEmail, $subject, $message);
+            }
         }
 
         // Redirect to tracking page with order id
