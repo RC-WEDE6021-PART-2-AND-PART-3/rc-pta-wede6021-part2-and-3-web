@@ -24,9 +24,10 @@ if (($role ?? '') !== 'admin') {
 }
 
 // handle status update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['orderID']) && !empty($_POST['status'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['orderID']) && isset($_POST['status'])) {
     $oid = (int)$_POST['orderID'];
-    $status = $_POST['status'];
+    $status = (string)$_POST['status'];
+
     // determine actual orders table name
     $orderTable = null;
     $candidates = ['tblAorder','tblaorder','tblAOrder','tblAorders','tblOrder','tblorder'];
@@ -34,14 +35,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['orderID']) && !empty
         $tres = $conn->query("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($cand) . "' LIMIT 1");
         if ($tres && $tres->fetch_row()) { $orderTable = $cand; break; }
     }
+
+    // if orders table found, ensure it has a `status` column before updating
     if ($orderTable) {
-        $sql = "UPDATE `" . $orderTable . "` SET status = ? WHERE orderID = ?";
-        if ($u = $conn->prepare($sql)) {
-            $u->bind_param('si', $status, $oid);
-            $u->execute();
-            $u->close();
+        $hasStatus = false;
+        $cres = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($orderTable) . "' AND COLUMN_NAME = 'status'");
+        if ($cres) { $crow = $cres->fetch_assoc(); $hasStatus = (!empty($crow['c']) && $crow['c'] > 0); }
+
+        // whitelist acceptable statuses
+        $allowed = array('paid','processing','shipped','out_for_delivery','delivered');
+        if ($hasStatus && in_array($status, $allowed, true)) {
+            $sql = "UPDATE `" . $orderTable . "` SET status = ? WHERE orderID = ?";
+            if ($u = $conn->prepare($sql)) {
+                $u->bind_param('si', $status, $oid);
+                $u->execute();
+                $u->close();
+            }
         }
     }
+
     header('Location: admin_orders.php');
     exit;
 }
