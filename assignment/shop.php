@@ -11,12 +11,18 @@ $userID = (int)$_SESSION['userID'];
 $message = '';
 $error = '';
 
+// detect whether tblAorder has a `size` column
+$aorder_has_size = false;
+$cres = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tblAorder' AND COLUMN_NAME = 'size'");
+if ($cres) { $crow = $cres->fetch_assoc(); $aorder_has_size = (!empty($crow['c']) && $crow['c'] > 0); }
+
 function getAvailableImages() {
     return glob(__DIR__ . '/images/*.{jpg,jpeg,png,gif}', GLOB_BRACE) ?: [];
 }
 
 if (isset($_GET['add'])) {
     $clothID = (int)$_GET['add'];
+    $size = trim((string)($_GET['size'] ?? ''));
 
     $stmt = $conn->prepare("SELECT clothID FROM tblClothes WHERE clothID = ?");
     $stmt->bind_param("i", $clothID);
@@ -28,16 +34,26 @@ if (isset($_GET['add'])) {
     } else {
         $stmt->close();
 
-        $stmt = $conn->prepare("SELECT orderID, quantity FROM tblAorder WHERE userID = ? AND clothID = ?");
-        $stmt->bind_param("ii", $userID, $clothID);
+        if ($aorder_has_size && $size !== '') {
+            $stmt = $conn->prepare("SELECT orderID, quantity FROM tblAorder WHERE userID = ? AND clothID = ? AND size = ?");
+            $stmt->bind_param("iis", $userID, $clothID, $size);
+        } else {
+            $stmt = $conn->prepare("SELECT orderID, quantity FROM tblAorder WHERE userID = ? AND clothID = ?");
+            $stmt->bind_param("ii", $userID, $clothID);
+        }
         $stmt->execute();
         $result = $stmt->get_result();
 
-        if ($result->num_rows > 0) {
+            if ($result->num_rows > 0) {
             $row = $result->fetch_assoc();
             $newQty = $row['quantity'] + 1;
-            $update = $conn->prepare("UPDATE tblAorder SET quantity = ? WHERE orderID = ? AND userID = ?");
-            $update->bind_param("iii", $newQty, $row['orderID'], $userID);
+                if ($aorder_has_size && $size !== '') {
+                    $update = $conn->prepare("UPDATE tblAorder SET quantity = ? WHERE orderID = ? AND userID = ? AND size = ?");
+                    $update->bind_param("iiis", $newQty, $row['orderID'], $userID, $size);
+                } else {
+                    $update = $conn->prepare("UPDATE tblAorder SET quantity = ? WHERE orderID = ? AND userID = ?");
+                    $update->bind_param("iii", $newQty, $row['orderID'], $userID);
+                }
             if ($update->execute()) {
                 $message = "Item quantity updated in cart.";
             } else {
@@ -45,8 +61,13 @@ if (isset($_GET['add'])) {
             }
             $update->close();
         } else {
-            $insert = $conn->prepare("INSERT INTO tblAorder (userID, clothID, quantity) VALUES (?, ?, 1)");
-            $insert->bind_param("ii", $userID, $clothID);
+                if ($aorder_has_size && $size !== '') {
+                    $insert = $conn->prepare("INSERT INTO tblAorder (userID, clothID, quantity, size) VALUES (?, ?, 1, ?)");
+                    $insert->bind_param("iis", $userID, $clothID, $size);
+                } else {
+                    $insert = $conn->prepare("INSERT INTO tblAorder (userID, clothID, quantity) VALUES (?, ?, 1)");
+                    $insert->bind_param("ii", $userID, $clothID);
+                }
             if ($insert->execute()) {
                 $message = "Item added to cart.";
             } else {
@@ -142,12 +163,14 @@ if ($clothes->num_rows === 0) {
                     <?php $img = !empty($c['image']) ? $c['image'] : 'placeholder.png'; ?>
                     <div class="item">
                         <div class="badge">NEW</div>
-                        <img src="images/<?= rawurlencode($img) ?>"
-                             alt="<?= htmlspecialchars($c['clothName']) ?>"
-                             class="product-img">
-                        <h3><?= htmlspecialchars($c['clothName']) ?></h3>
-                        <p>R<?= number_format((float)$c['price'], 2) ?></p>
-                        <a class="btn" href="shop.php?add=<?= (int)$c['clothID'] ?>">Add to Cart</a>
+                                <a href="product_detail.php?clothID=<?= (int)$c['clothID'] ?>">
+                                    <img src="images/<?= rawurlencode($img) ?>"
+                                         alt="<?= htmlspecialchars($c['clothName']) ?>"
+                                         class="product-img">
+                                </a>
+                                <h3><a href="product_detail.php?clothID=<?= (int)$c['clothID'] ?>"><?= htmlspecialchars($c['clothName']) ?></a></h3>
+                                <p>R<?= number_format((float)$c['price'], 2) ?></p>
+                                <a class="btn" href="product_detail.php?clothID=<?= (int)$c['clothID'] ?>">View Details</a>
                     </div>
                 <?php endwhile; ?>
             <?php endif; ?>

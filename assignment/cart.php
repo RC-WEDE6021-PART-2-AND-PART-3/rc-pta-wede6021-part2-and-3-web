@@ -9,6 +9,20 @@ if(!isset($_SESSION['userID'])){
 
 $userID = $_SESSION['userID'];
 
+// handle update quantity POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update') {
+    $orderID = (int)($_POST['orderID'] ?? 0);
+    $qty = max(1, (int)($_POST['qty'] ?? 1));
+    if ($orderID > 0) {
+        $u = $conn->prepare('UPDATE tblAorder SET quantity = ? WHERE orderID = ? AND userID = ?');
+        $u->bind_param('iii', $qty, $orderID, $userID);
+        $u->execute();
+        $u->close();
+    }
+    header('Location: cart.php');
+    exit();
+}
+
 /* REMOVE */
 if(isset($_GET['remove'])){
     $id = (int)$_GET['remove'];
@@ -20,6 +34,7 @@ if(isset($_GET['remove'])){
 /* LOAD CART */
 $sql = "
 SELECT o.orderID, o.quantity,
+    o.size,
        c.clothName, c.price, c.image
 FROM tblAorder o
 JOIN tblClothes c ON o.clothID = c.clothID
@@ -70,16 +85,22 @@ $result = $stmt->get_result();
     </div>
 
     <div>
-        <h3><?= htmlspecialchars($row['clothName']) ?></h3>
+        <h3><?= htmlspecialchars($row['clothName']) ?><?php if(!empty($row['size'])): ?> <small style="font-weight:normal;">(Size: <?= htmlspecialchars($row['size']) ?>)</small><?php endif; ?></h3>
         <p>Price: R<span class="price"><?= $row['price'] ?></span></p>
         <p>Subtotal: R<span class="subtotal">0</span></p>
     </div>
 
     <div>
-        <input type="number"
-               class="qty"
-               value="<?= $row['quantity'] ?>"
-               min="1">
+        <form method="post" style="display:inline-block;">
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="orderID" value="<?= (int)$row['orderID'] ?>">
+            <input type="number"
+                   class="qty"
+                   name="qty"
+                   value="<?= $row['quantity'] ?>"
+                   min="1">
+            <button type="submit" class="btn" style="margin-left:8px;">Update</button>
+        </form>
 
         <br><br>
 
