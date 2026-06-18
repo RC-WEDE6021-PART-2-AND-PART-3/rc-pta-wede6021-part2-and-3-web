@@ -5,8 +5,20 @@
 ## Overview
 
 This is a **full-stack PHP web application** for a Clothing Store.
+A web-based platform for buying and selling clothes, built with PHP and MySQL.
+It supports both user-facing features (shopping, selling, order tracking) and admin tools (product management, user oversight).
 It allows users to register, log in, browse products, add items to a cart, and complete a simulated payment process.
 An admin panel is also included to manage users and view orders.
+
+---
+Project Overview
+This application allows:
+
+Users to register, browse clothes, place orders, and list their own items for sale.
+
+Admins to manage products, users, and orders through a dedicated dashboard.
+
+The goal is to simulate a real-world clothing marketplace with essential e-commerce functionality.
 
 ---
 
@@ -20,12 +32,16 @@ An admin panel is also included to manage users and view orders.
   * Username
   * Email
   * Password (hashed)
-* Login using **Username OR Email**
-* Browse products
-* Add items to cart
-* Checkout with **address validation**
-* Simulated payment system
-* Contact form
+  * Login using **Username OR Email**
+  * Browse products
+  * Add items to cart
+  * Checkout with **address validation**
+  * Simulated payment system
+  * Contact form
+  * Browse products with images, prices, and descriptions.
+  * Search & filtering to quickly find items by category, size, or price.
+  * Order history page to track past and current purchases.
+  * Sell clothes: upload product details and images to list items for sale
 
 ---
 
@@ -64,6 +80,12 @@ An admin panel is also included to manage users and view orders.
   * Total users
   * Total products
   * Total orders
+* Product management page:
+  * Add new products.
+  * Update existing product details (name, price, image).
+  * Delete products no longer available.
+  * User management: view and manage registered users.
+  * Order management: track and update order statuses.
 * View all users
 * View all orders
 
@@ -139,7 +161,16 @@ CREATE TABLE tblAorder (
     quantity INT
 );
 ```
+Database Schema
+Tables include:
 
+tblUser → Stores user details.
+
+tblAdmin → Stores admin credentials.
+
+tblClothes → Stores product details.
+
+tblAorder → Stores orders placed by users.
 ---
 
 ##  Installation Steps
@@ -212,19 +243,18 @@ http://localhost/your-folder/login.php
 ##  Notes
 
 * Payment system is **simulated (no real transactions)**
-* Forgot password is **UI only (not functional)**
+* 
 * Images must be stored in `/images` folder
 
 ---
+Technologies Used
+Frontend: HTML, CSS, JavaScript
 
-##  Future Improvements
+Backend: PHP
 
-* Real payment integration (Stripe/PayPal)
-* Email verification system
-* Password reset functionality
-* Product image uploads
-* Search & filtering
-* Order history page
+Database: MySQL
+
+Server: Apache (via XAMPP/WAMP)
 
 ---
 
