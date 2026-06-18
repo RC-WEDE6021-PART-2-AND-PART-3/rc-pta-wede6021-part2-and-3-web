@@ -94,8 +94,19 @@ $statuses = ['paid'=>'Payment received','processing'=>'Processing','shipped'=>'S
 ?>
 <link rel="stylesheet" href="style.css">
 <div class="layout">
+    <div class="taskbar">
+    <h2>Admin Panel</h2>
+
+    <div class="tb-nav">
+        <a href="adminDashboard.php">Dashboard</a>
+        <a href="admin_products.php" class="active">Products</a>
+        <a href="admin_orders.php">Orders</a>
+        <a href="logout.php">Logout</a>
+        
+    </div>
+</div>
     <div class="main-content">
-        <h2>Manage Orders</h2>
+      <h2 class="title">Manage Orders</h2>
         <?php if ($orders && $orders->num_rows): ?>
             <table style="width:100%;border-collapse:collapse;">
                 <thead><tr><th>Order</th><th>User</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>

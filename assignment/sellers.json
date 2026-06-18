@@ -7,7 +7,18 @@
         "bank_name": "capitec",
         "account_name": "senzo",
         "account_number": "234455555555555",
-        "created_at": "2026-05-04T18:57:23+02:00",
-        "approved": true
+        "approved": true,
+        "created_at": "2026-05-04T18:57:23+02:00"
+    },
+    {
+        "userID": 23,
+        "email": "boy",
+        "store_name": "jordan",
+        "owner_name": "tshego",
+        "bank_name": "capitec",
+        "account_name": "senzo",
+        "account_number": "234455555555555",
+        "approved": true,
+        "created_at": "2026-06-18T21:50:33+02:00"
     }
 ]

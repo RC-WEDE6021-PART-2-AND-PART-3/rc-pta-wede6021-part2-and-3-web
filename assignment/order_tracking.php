@@ -7,20 +7,7 @@ if(!isset($_SESSION['userID'])){
     exit();
 }
 
-$userID = (int)$_SESSION['userID'];
-$orderID = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-if ($orderID <= 0) {
-    echo 'Order not found'; exit;
-}
 
-$stmt = $conn->prepare('SELECT * FROM tblAorder WHERE orderID = ? AND userID = ? LIMIT 1');
-$stmt->bind_param('ii', $orderID, $userID);
-$stmt->execute();
-$res = $stmt->get_result();
-$order = $res->fetch_assoc();
-$stmt->close();
-
-if (!$order) { echo 'Order not found'; exit; }
 
 $status = $order['status'] ?? 'paid';
 $steps = ['paid'=>'Payment received','processing'=>'Processing','shipped'=>'Shipped','out_for_delivery'=>'Out for delivery','delivered'=>'Delivered'];

@@ -15,9 +15,20 @@ $sellersFile = __DIR__ . '/sellers.json';
 $productsFile = __DIR__ . '/sellers_products.json';
 $uploadDir = 'images/sellers/';
 
-// Load existing sellers and products
-$sellers = file_exists($sellersFile) ? json_decode(file_get_contents($sellersFile), true) : [];
-$products = file_exists($productsFile) ? json_decode(file_get_contents($productsFile), true) : [];
+// Load existing sellers and products (with validation)
+$sellers = [];
+if (file_exists($sellersFile)) {
+    $content = file_get_contents($sellersFile);
+    $decoded = json_decode($content, true);
+    $sellers = (is_array($decoded)) ? $decoded : [];
+}
+
+$products = [];
+if (file_exists($productsFile)) {
+    $content = file_get_contents($productsFile);
+    $decoded = json_decode($content, true);
+    $products = (is_array($decoded)) ? $decoded : [];
+}
 
 // Check if user is already a seller
 $isSeller = false;
@@ -74,7 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = "Seller application submitted! Waiting for admin approval.";
             }
 
-            file_put_contents($sellersFile, json_encode($sellers, JSON_PRETTY_PRINT));
+            if (!@file_put_contents($sellersFile, json_encode($sellers, JSON_PRETTY_PRINT))) {
+                $error = "Failed to save seller information. Please try again.";
+            }
         }
     }
     
@@ -118,8 +131,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'created_at' => date('c')
             ];
             $products[] = $entry;
-            file_put_contents($productsFile, json_encode($products, JSON_PRETTY_PRINT));
-            $message = 'Product uploaded.';
+            if (!@file_put_contents($productsFile, json_encode($products, JSON_PRETTY_PRINT))) {
+                $error = "Product uploaded but failed to save to database. Please contact support.";
+            } else {
+                $message = 'Product uploaded successfully!';
+            }
         }
     }
     
@@ -132,8 +148,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 @unlink(__DIR__ . '/' . $products[$idx]['img']);
             }
             array_splice($products, $idx, 1);
-            file_put_contents($productsFile, json_encode($products, JSON_PRETTY_PRINT));
-            $message = 'Product removed.';
+            if (!@file_put_contents($productsFile, json_encode($products, JSON_PRETTY_PRINT))) {
+                $error = "Failed to delete product. Please try again.";
+            } else {
+                $message = 'Product removed successfully.';
+            }
         }
     }
 }

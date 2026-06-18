@@ -108,9 +108,11 @@ if ($orderItemsTableName) {
 /* -------------------------
    CHECKOUT
 -------------------------- */
+$success_message = '';
 if(isset($_POST['checkout'])){
 
     $address = trim($_POST['address']);
+    $promo_code = isset($_POST['promo_code']) ? trim($_POST['promo_code']) : '';
 
     if(empty($address)){
         $error = "Address is required!";
@@ -130,8 +132,12 @@ if(isset($_POST['checkout'])){
 
         // CREATE ORDER (use detected orders table name; include columns only if they exist)
         $order_has_total = false;
+        $order_has_promo = false;
         $tres = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($orderTableName) . "' AND COLUMN_NAME = 'total'");
         if ($tres) { $trow = $tres->fetch_assoc(); $order_has_total = (!empty($trow['c']) && $trow['c'] > 0); }
+        
+        $pres = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($orderTableName) . "' AND COLUMN_NAME = 'promo_code'");
+        if ($pres) { $prow = $pres->fetch_assoc(); $order_has_promo = (!empty($prow['c']) && $prow['c'] > 0); }
 
         // build columns and placeholders
         $cols = ['userID'];
@@ -144,6 +150,9 @@ if(isset($_POST['checkout'])){
         }
         if (!empty($order_has_address)) {
             $cols[] = 'address'; $placeholders[] = '?'; $types .= 's'; $values[] = $address;
+        }
+        if (!empty($order_has_promo) && !empty($promo_code)) {
+            $cols[] = 'promo_code'; $placeholders[] = '?'; $types .= 's'; $values[] = $promo_code;
         }
 
         $colList = implode(',', $cols);
@@ -165,31 +174,34 @@ if(isset($_POST['checkout'])){
         }
 
         // INSERT ITEMS (include size if supported)
-        foreach($cartItems as $item){
-            if ($order_items_has_size && $orderItemsTableName) {
-                $stmt = $conn->prepare("INSERT INTO `" . $orderItemsTableName . "`(orderID, clothID, quantity, price, size) VALUES(?,?,?,?,?)");
-                $size = $item['size'] ?? null;
-                $stmt->bind_param(
-                    "iiids",
-                    $orderID,
-                    $item['clothID'],
-                    $item['quantity'],
-                    $item['price'],
-                    $size
-                );
-            } else {
-                $targetItems = $orderItemsTableName ? $orderItemsTableName : 'tblaorderItems';
-                $stmt = $conn->prepare("INSERT INTO `" . $targetItems . "`(orderID, clothID, quantity, price) VALUES(?,?,?,?)");
-                $stmt->bind_param(
-                    "iiid",
-                    $orderID,
-                    $item['clothID'],
-                    $item['quantity'],
-                    $item['price']
-                );
+        // determine a safe target items table
+        $targetItems = $orderItemsTableName;
+        if (empty($targetItems)) {
+            $finder = $conn->query("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND (TABLE_NAME LIKE '%orderitem%' OR TABLE_NAME LIKE '%order_items%' OR TABLE_NAME LIKE '%orderitems%') LIMIT 1");
+            if ($finder && ($r = $finder->fetch_assoc())) {
+                $targetItems = $r['TABLE_NAME'];
             }
-            $stmt->execute();
-            $stmt->close();
+        }
+
+        if (empty($targetItems)) {
+            $error = "Order items table not found in database. Please contact the administrator.";
+        } else {
+            foreach($cartItems as $item){
+                if ($order_items_has_size && $orderItemsTableName) {
+                    $sql = "INSERT INTO `" . $orderItemsTableName . "`(orderID, clothID, quantity, price, size) VALUES(?,?,?,?,?)";
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) { $error = 'DB prepare failed: ' . $conn->error; break; }
+                    $size = $item['size'] ?? null;
+                    $stmt->bind_param("iiids", $orderID, $item['clothID'], $item['quantity'], $item['price'], $size);
+                } else {
+                    $sql = "INSERT INTO `" . $targetItems . "`(orderID, clothID, quantity, price) VALUES(?,?,?,?)";
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) { $error = 'DB prepare failed: ' . $conn->error; break; }
+                    $stmt->bind_param("iiid", $orderID, $item['clothID'], $item['quantity'], $item['price']);
+                }
+                $stmt->execute();
+                $stmt->close();
+            }
         }
 
         // CLEAR CART
@@ -218,6 +230,7 @@ if(isset($_POST['checkout'])){
             }
         }
 
+        $success_message = "Order placed successfully! Order ID: " . $orderID;
         // Redirect to tracking page with order id
         header("Location: order_tracking.php?id=" . $orderID);
         exit();
@@ -244,6 +257,10 @@ if(isset($_POST['checkout'])){
 
 <div class="payment-container">
 
+<?php if(!empty($success_message)): ?>
+<div class="success"><?= $success_message ?></div>
+<?php endif; ?>
+
 <?php if(!empty($error)): ?>
 <div class="errors"><?= $error ?></div>
 <?php endif; ?>
@@ -257,11 +274,11 @@ if(isset($_POST['checkout'])){
         <p>
             <?= $item['clothName'] ?> <?php if(!empty($item['size'])): ?>(Size: <?= htmlspecialchars($item['size']) ?>)<?php endif; ?>
             (x<?= $item['quantity'] ?>)
-            - R<?= $item['subtotal'] ?>
+            - R<?= number_format($item['subtotal'], 2) ?>
         </p>
     <?php endforeach; ?>
 
-    <h2>Total: R<?= $total ?></h2>
+    <h2>Total: R<?= number_format($total, 2) ?></h2>
 </div>
 
 <form method="POST" class="payment-form">
@@ -271,6 +288,11 @@ if(isset($_POST['checkout'])){
            placeholder="Delivery Address"
            value="<?= htmlspecialchars($currentAddress) ?>"
            required>
+
+    <!-- Promo Code Field -->
+    <input type="text" name="promo_code"
+           placeholder="Promo Code (optional)"
+           value="<?= htmlspecialchars($_POST['promo_code'] ?? '') ?>">
 
     <!-- Fake payment fields -->
     <input type="text" placeholder="Card Number" required>

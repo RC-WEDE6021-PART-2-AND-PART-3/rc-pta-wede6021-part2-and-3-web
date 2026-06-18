@@ -158,6 +158,7 @@ $products = array_merge($dbProducts, $sellerProducts);
             <a href="shop.php">Shop</a>
             <a href="cart.php">Cart</a>
             <a href="contact.php">Contact</a>
+            <a href="order_tracking.php"><track>Track Order</track></a>
             <?php if(!empty($_SESSION['user']['role']) && $_SESSION['user']['role'] === 'seller'): ?>
                 <a href="seller_dashboard.php">Seller Dashboard</a>
             <?php else: ?>

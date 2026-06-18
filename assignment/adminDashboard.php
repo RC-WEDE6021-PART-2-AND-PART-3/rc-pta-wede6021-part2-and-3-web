@@ -100,6 +100,7 @@ $totalOrders = $conn->query("SELECT COUNT(*) c FROM tblAorder")->fetch_assoc()['
 
     <div class="tb-nav">
         <a href="adminDashboard.php">Dashboard</a>
+        <a href="admin_products.php">Products</a>
         <a href="admin_orders.php">Orders</a>
         <a href="logout.php">Logout</a>
         
