@@ -59,6 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <body>
 
+<div class="auth-container">
+
 <div class="auth-hero">
         <div>
             <h1 style="margin:0">Create your account</h1>
@@ -114,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 </form>
 
-</div>
+    </div>
 </div>
 
 </body>

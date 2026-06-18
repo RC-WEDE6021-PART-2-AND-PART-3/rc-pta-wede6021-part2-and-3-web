@@ -57,10 +57,10 @@
         <section class="hero">
             <div class="hero-center">
                 <img src="images/logo.jpeg" alt="BASENJI logo" class="site-logo">
-                <p class="hero-desc">Give Clothes a Second Life, Give Yourself More Choice<br><br>
-At our marketplace, fashion isn't just about trends—it's about community, sustainability, and opportunity. We believe every piece of clothing has a story worth continuing. That's why we've built a space where people can resell their clothes with ease and others can discover affordable, quality fashion without compromise.<br><br>
-By choosing to buy and sell here, you're not only saving money—you're helping reduce waste, extend the life of garments, and make style accessible to everyone. Together, we're reshaping fashion into something more inclusive, sustainable, and empowering.<br><br>
-Resell. Rewear. Renew.<br>
+                <p class="hero-desc">Give Clothes a Second Life, Give Yourself More Choice<br>
+At our marketplace, fashion isn't just about trends—it's about community, sustainability, and opportunity. We believe every piece of clothing has a story worth continuing. That's why we've built a space where people can resell their clothes with ease and others can discover affordable, quality fashion without compromise.<br>
+By choosing to buy and sell here, you're not only saving money—you're helping reduce waste, extend the life of garments, and make style accessible to everyone. Together, we're reshaping fashion into something more inclusive, sustainable, and empowering.<br>
+Resell. Rewear. Renew.
 Your wardrobe has endless possibilities—let's unlock them.</p>
                 <a href="shop.php" class="btn">Shop Now</a>
             </div>

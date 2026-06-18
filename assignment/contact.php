@@ -43,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <a href="shop.php">Shop</a>
             <a href="cart.php">Cart</a>
             <a href="contact.php">Contact</a>
-            <a href="logout.php">Logout</a>
+            <a href="login.php">Login</a>
         </div>
     </div>
 
@@ -56,7 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <div class="auth-hero">
                 <div>
                     <h1>Contact Us</h1>
-                    <p>We’d love to hear from you</p>
+                    <p>We'd love to hear from you</p>
                 </div>
             </div>
 

@@ -1,8 +1,8 @@
--- Migration: add `size` to tblOrderItems and `status` to tblOrder to support tracking
-ALTER TABLE tblOrderItems
-ADD COLUMN `size` VARCHAR(50) NULL COMMENT 'Selected size for the ordered item';
+-- Migration: add `size` to tblAorderItems and `status` to tblAorder to support tracking
 
-ALTER TABLE tblOrder
+ALTER TABLE tblAorderItems
+
+ALTER TABLE tblAorder
 ADD COLUMN `status` VARCHAR(50) NOT NULL DEFAULT 'paid' COMMENT 'Order status for tracking';
 
-CREATE INDEX idx_tblOrder_status ON tblOrder (status);
+CREATE INDEX idx_tblAorder_status ON tblAorder (status);

@@ -27,16 +27,26 @@ if (!$product) {
 }
 
 // try to find sizes: either `sizes` column on tblClothes or a tblClothSizes table
+// gather sizes from possible sources: tblClothes.sizes (csv), tblClothes.size (single), or tblClothSizes
 $sizes = [];
+// prefer comma-separated `sizes` column
 if (!empty($product['sizes'])) {
     $parts = array_filter(array_map('trim', explode(',', $product['sizes'])));
     if ($parts) $sizes = $parts;
 }
-
+// fallback to singular `size` column
+if (empty($sizes) && !empty($product['size'])) {
+    $sizes = [trim($product['size'])];
+}
+// fallback to separate table (if it exists)
 if (empty($sizes)) {
-    $ps = $conn->query("SELECT size FROM tblClothSizes WHERE clothID = " . (int)$clothID);
-    if ($ps) {
-        while ($r = $ps->fetch_assoc()) $sizes[] = $r['size'];
+    try {
+        $ps = $conn->query("SELECT size FROM tblClothSizes WHERE clothID = " . (int)$clothID);
+        if ($ps) {
+            while ($r = $ps->fetch_assoc()) $sizes[] = $r['size'];
+        }
+    } catch (Exception $e) {
+        // table doesn't exist, skip
     }
 }
 
@@ -56,7 +66,17 @@ $addUrl = 'shop.php?add=' . $clothID;
 <?php // simple nav reuse omitted for brevity ?>
 <div class="detail">
     <div class="image">
-        <img src="images/<?php echo htmlspecialchars($product['image'] ?: 'placeholder.png'); ?>" alt="<?php echo htmlspecialchars($product['clothName']); ?>">
+        <?php
+        $imgFile = !empty($product['image']) ? __DIR__ . '/images/' . $product['image'] : '';
+        $imgSrc = 'images/placeholder.png';
+        if ($imgFile && file_exists($imgFile)) {
+            $imgSrc = 'images/' . rawurlencode($product['image']);
+        } elseif (!empty($product['image'])) {
+            // try unencoded filename
+            $imgSrc = 'images/' . htmlspecialchars($product['image']);
+        }
+        ?>
+        <img src="<?php echo $imgSrc; ?>" alt="<?php echo htmlspecialchars($product['clothName']); ?>">
     </div>
     <div class="info">
         <h1><?php echo htmlspecialchars($product['clothName']); ?></h1>

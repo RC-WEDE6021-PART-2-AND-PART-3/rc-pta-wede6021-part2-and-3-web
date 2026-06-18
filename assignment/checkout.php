@@ -11,30 +11,50 @@ $userID = $_SESSION['userID'];
 
 /* -------------------------
    GET USER ADDRESS & CONTACT
+   (defensive: handle missing columns)
 -------------------------- */
-$userQ = $conn->prepare("SELECT address, email, fullname FROM tblUser WHERE userID=?");
-$userQ->bind_param("i",$userID);
-$userQ->execute();
-$userRes = $userQ->get_result();
-$userData = $userRes->fetch_assoc();
+$currentAddress = '';
+$userEmail = '';
+$userFullname = '';
 
-$currentAddress = $userData['address'] ?? "";
-$userEmail = $userData['email'] ?? '';
-$userFullname = $userData['fullname'] ?? '';
+// check which columns exist on tblUser
+$cols = [];
+$cres = $conn->query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tblUser' AND COLUMN_NAME IN ('address','email','fullname')");
+if ($cres) {
+    while ($crow = $cres->fetch_assoc()) {
+        $cols[] = $crow['COLUMN_NAME'];
+    }
+}
+
+if (!empty($cols)) {
+    $selectCols = implode(', ', $cols);
+    $userQ = $conn->prepare("SELECT $selectCols FROM tblUser WHERE userID=?");
+    $userQ->bind_param("i", $userID);
+    $userQ->execute();
+    $userRes = $userQ->get_result();
+    if ($userRes) {
+        $userData = $userRes->fetch_assoc();
+        if (in_array('address', $cols)) $currentAddress = $userData['address'] ?? '';
+        if (in_array('email', $cols)) $userEmail = $userData['email'] ?? '';
+        if (in_array('fullname', $cols)) $userFullname = $userData['fullname'] ?? '';
+    }
+}
 
 /* -------------------------
-   GET CART ITEMS (include size)
+   GET CART ITEMS (include size if tblAorder.size exists)
 -------------------------- */
-$sql = "
-SELECT o.orderID, o.quantity, o.size,
-       c.clothID, c.clothName, c.price
-FROM tblAorder o
-JOIN tblClothes c ON o.clothID = c.clothID
-WHERE o.userID = ?
-";
+$aorder_has_size = false;
+$ares = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tblAorder' AND COLUMN_NAME = 'size'");
+if ($ares) { $arow = $ares->fetch_assoc(); $aorder_has_size = (!empty($arow['c']) && $arow['c'] > 0); }
+
+if ($aorder_has_size) {
+    $sql = "SELECT o.orderID, o.quantity, o.size, c.clothID, c.clothName, c.price FROM tblAorder o JOIN tblClothes c ON o.clothID = c.clothID WHERE o.userID = ?";
+} else {
+    $sql = "SELECT o.orderID, o.quantity, c.clothID, c.clothName, c.price FROM tblAorder o JOIN tblClothes c ON o.clothID = c.clothID WHERE o.userID = ?";
+}
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param("i",$userID);
+$stmt->bind_param("i", $userID);
 $stmt->execute();
 $result = $stmt->get_result();
 
@@ -48,9 +68,9 @@ while($row = $result->fetch_assoc()){
     $cartItems[] = $row;
 }
 
-// detect whether tblOrderItems supports a `size` column
+// detect whether tblaorderItems supports a `size` column
 $order_items_has_size = false;
-$ores = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tblOrderItems' AND COLUMN_NAME = 'size'");
+$ores = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tblaorderItems' AND COLUMN_NAME = 'size'");
 if ($ores) { $orow = $ores->fetch_assoc(); $order_items_has_size = (!empty($orow['c']) && $orow['c'] > 0); }
 
 /* -------------------------
@@ -72,7 +92,7 @@ if(isset($_POST['checkout'])){
         $stmt->execute();
 
         // CREATE ORDER
-        $stmt = $conn->prepare("INSERT INTO tblOrder(userID, total, address) VALUES(?,?,?)");
+        $stmt = $conn->prepare("INSERT INTO tblaorder(userID, total, address) VALUES(?,?,?)");
         $stmt->bind_param("ids",$userID,$total,$address);
         $stmt->execute();
 
@@ -82,7 +102,7 @@ if(isset($_POST['checkout'])){
         foreach($cartItems as $item){
             if ($order_items_has_size) {
                 $stmt = $conn->prepare("\
-                    INSERT INTO tblOrderItems(orderID, clothID, quantity, price, size)\
+                    INSERT INTO tblaorderItems(orderID, clothID, quantity, price, size)\
                     VALUES(?,?,?,?,?)\
                 ");
                 $size = $item['size'] ?? null;
@@ -96,7 +116,7 @@ if(isset($_POST['checkout'])){
                 );
             } else {
                 $stmt = $conn->prepare("\
-                    INSERT INTO tblOrderItems(orderID, clothID, quantity, price)\
+                    INSERT INTO tblaorderItems(orderID, clothID, quantity, price)\
                     VALUES(?,?,?,?)\
                 ");
                 $stmt->bind_param(
@@ -207,176 +227,7 @@ if(isset($_POST['checkout'])){
 
 </div>
 </div>
-<?php
-include "DBConn.php";
-session_start();
 
-if(!isset($_SESSION['userID'])){
-    header("Location: login.php");
-    exit();
-}
-
-$userID = $_SESSION['userID'];
-
-/* -------------------------
-   GET USER ADDRESS
--------------------------- */
-$userQ = $conn->prepare("SELECT address, email, fullname FROM tblUser WHERE userID=?");
-$userQ->bind_param("i",$userID);
-$userQ->execute();
-$userRes = $userQ->get_result();
-$userData = $userRes->fetch_assoc();
-
-$currentAddress = $userData['address'] ?? "";
-$userEmail = $userData['email'] ?? '';
-$userFullname = $userData['fullname'] ?? '';
-
-/* -------------------------
-        // INSERT ITEMS (include size if supported)
-        foreach($cartItems as $item){
-            if ($order_items_has_size) {
-                $stmt = $conn->prepare("\
-                    INSERT INTO tblOrderItems(orderID, clothID, quantity, price, size)\
-                    VALUES(?,?,?,?,?)\
-                ");
-                $size = $item['size'] ?? null;
-                $stmt->bind_param(
-                    "iiids",
-                    $orderID,
-                    $item['clothID'],
-                    $item['quantity'],
-                    $item['price'],
-                    $size
-                );
-            } else {
-                $stmt = $conn->prepare("\
-                    INSERT INTO tblOrderItems(orderID, clothID, quantity, price)\
-                    VALUES(?,?,?,?)\
-                ");
-                $stmt->bind_param(
-                    "iiid",
-                    $orderID,
-                    $item['clothID'],
-                    $item['quantity'],
-                    $item['price']
-                );
-            }
-            $stmt->execute();
-            $stmt->close();
-        }
-
-        // CLEAR CART
-        $conn->query("DELETE FROM tblAorder WHERE userID=$userID");
-
-        // Redirect to tracking page with order id
-        header("Location: order_tracking.php?id=" . $orderID);
-        exit();
-    $row['subtotal'] = $row['price'] * $row['quantity'];
-    $total += $row['subtotal'];
-    $cartItems[] = $row;
-}
-
-// detect whether tblOrderItems supports a `size` column
-$order_items_has_size = false;
-$ores = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tblOrderItems' AND COLUMN_NAME = 'size'");
-if ($ores) { $orow = $ores->fetch_assoc(); $order_items_has_size = (!empty($orow['c']) && $orow['c'] > 0); }
-
-/* -------------------------
-   CHECKOUT
--------------------------- */
-if(isset($_POST['checkout'])){
-
-    $address = trim($_POST['address']);
-
-    if(empty($address)){
-        $error = "Address is required!";
-    } elseif(empty($cartItems)){
-        $error = "Cart is empty!";
-    } else {
-
-        // SAVE ADDRESS TO USER PROFILE
-        $stmt = $conn->prepare("UPDATE tblUser SET address=? WHERE userID=?");
-        $stmt->bind_param("si",$address,$userID);
-        $stmt->execute();
-
-        // CREATE ORDER
-        $stmt = $conn->prepare("INSERT INTO tblOrder(userID, total, address) VALUES(?,?,?)");
-        $stmt->bind_param("ids",$userID,$total,$address);
-        $stmt->execute();
-
-        $orderID = $stmt->insert_id;
-
-        // INSERT ITEMS
-        foreach($cartItems as $item){
-            $stmt = $conn->prepare("
-                INSERT INTO tblOrderItems(orderID, clothID, quantity, price)
-                VALUES(?,?,?,?)
-            ");
-            $stmt->bind_param(
-                "iiid",
-                $orderID,
-                $item['clothID'],
-                $item['quantity'],
-                $item['price']
-            );
-            $stmt->execute();
-        }
-
-        // CLEAR CART
-        $conn->query("DELETE FROM tblAorder WHERE userID=$userID");
-
-        header("Location: success.php");
-        exit();
-    }
-}
-?>
-
-<link rel="stylesheet" href="style.css">
-
-<div class="layout">
-
-<div class="taskbar">
-    <h2>Clothing Store</h2>
-    <div class="tb-nav">
-        <a href="shop.php">Shop</a>
-        <a href="cart.php">Cart</a>
-        <a href="logout.php">Logout</a>
-    </div>
-</div>
-
-<div class="main-content">
-
-<h2 class="title">Checkout</h2>
-
-<div class="payment-container">
-
-<?php if(!empty($error)): ?>
-<div class="errors"><?= $error ?></div>
-<?php endif; ?>
-
-<?php if(!empty($cartItems)): ?>
-
-<div class="summary">
-    <h3>Order Summary</h3>
-
-    <?php foreach($cartItems as $item): ?>
-        <p>
-            <?= $item['clothName'] ?> 
-            (x<?= $item['quantity'] ?>)
-            - R<?= $item['subtotal'] ?>
-        </p>
-    <?php endforeach; ?>
-
-    <h2>Total: R<?= $total ?></h2>
-</div>
-
-<form method="POST" class="payment-form">
-
-    <!-- ✅ ADDRESS FIELD -->
-    <input type="text" name="address"
-           placeholder="Delivery Address"
-           value="<?= htmlspecialchars($currentAddress) ?>"
-           required>
 
     <!-- Fake payment fields -->
     <input type="text" placeholder="Card Number" required>

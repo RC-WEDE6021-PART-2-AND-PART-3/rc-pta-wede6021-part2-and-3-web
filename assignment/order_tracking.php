@@ -13,7 +13,7 @@ if ($orderID <= 0) {
     echo 'Order not found'; exit;
 }
 
-$stmt = $conn->prepare('SELECT * FROM tblOrder WHERE orderID = ? AND userID = ? LIMIT 1');
+$stmt = $conn->prepare('SELECT * FROM tblAorder WHERE orderID = ? AND userID = ? LIMIT 1');
 $stmt->bind_param('ii', $orderID, $userID);
 $stmt->execute();
 $res = $stmt->get_result();

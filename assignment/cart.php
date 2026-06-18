@@ -32,9 +32,16 @@ if(isset($_GET['remove'])){
 }
 
 /* LOAD CART */
+// detect whether tblAorder has a `size` column
+$has_size_column = false;
+$cres = @$conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tblAorder' AND COLUMN_NAME = 'size'");
+if ($cres) { 
+    $crow = $cres->fetch_assoc(); 
+    $has_size_column = (!empty($crow['c']) && $crow['c'] > 0); 
+}
+
 $sql = "
-SELECT o.orderID, o.quantity,
-    o.size,
+SELECT o.orderID, o.quantity" . ($has_size_column ? ", o.size" : "") . ",
        c.clothName, c.price, c.image
 FROM tblAorder o
 JOIN tblClothes c ON o.clothID = c.clothID
@@ -46,32 +53,53 @@ $stmt->bind_param("i",$userID);
 $stmt->execute();
 $result = $stmt->get_result();
 ?>
-
-<link rel="stylesheet" href="style.css">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
 <div class="layout">
 
-<div class="taskbar">
-    <h2>Clothing Store</h2>
-    <div class="tb-nav">
-        <a href="index.php">Home</a>
-        <a href="shop.php">Shop</a>
-        <a href="cart.php">Cart</a>
-        <a href="contact.php">Contact</a>
-        <?php if(!empty($_SESSION['user']['role']) && $_SESSION['user']['role'] === 'seller'): ?>
-            <a href="seller_dashboard.php">Seller Dashboard</a>
-        <?php else: ?>
-            <a href="sellers.php">Become a Seller</a>
-        <?php endif; ?>
-        <a href="logout.php">Logout</a>
-    </div>
-</div>
+    <aside class="taskbar">
+        <div class="tb-top">
+            <img src="images/logo.jpeg" alt="Pastimes logo" class="tb-logo-img">
+            <h2 class="tb-title">Pastimes</h2>
+        </div>
 
-<div class="main-content">
+        <nav class="tb-nav">
+            <a href="index.php">Home</a>
+            <a href="shop.php">Shop</a>
+            <a href="cart.php">Cart</a>
+            <a href="contact.php">Contact</a>
+            <?php if(!empty($_SESSION['user']['role']) && $_SESSION['user']['role'] === 'seller'): ?>
+                <a href="seller_dashboard.php">Seller Dashboard</a>
+            <?php else: ?>
+                <a href="sellers.php">Become a Seller</a>
+            <?php endif; ?>
+            <?php if(!empty($_SESSION['user']['role']) && $_SESSION['user']['role'] === 'admin'): ?>
+                <a href="adminDashboard.php">Admin</a>
+            <?php endif; ?>
+            <a href="logout.php">Logout</a>
+        </nav>
 
-<h2 class="title">Your Cart</h2>
+        <div class="tb-user">
+            <?php if (!empty($_SESSION['name'])): ?>
+                Hello, <?= htmlspecialchars($_SESSION['name']) ?>
+            <?php else: ?>
+                Logged in
+            <?php endif; ?>
+        </div>
+    </aside>
 
-<div class="cart">
+    <main class="main-content">
+        <h2 class="title">Your Cart</h2>
+
+        <div class="cart">
 
 <?php if($result->num_rows > 0): ?>
 
@@ -126,8 +154,9 @@ $result = $stmt->get_result();
 <?php endif; ?>
 
 </div>
-</div>
-</div>
+        </main>
+
+    </div>
 
 <!-- AUTO CALCULATION SCRIPT -->
 <script>
@@ -155,3 +184,6 @@ document.querySelectorAll('.qty').forEach(input => {
     input.addEventListener('input', updateCart);
 });
 </script>
+
+</body>
+</html>

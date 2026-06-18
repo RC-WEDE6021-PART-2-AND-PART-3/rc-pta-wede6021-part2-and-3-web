@@ -1,38 +1,82 @@
 <?php
-include "DBConn.php";
 session_start();
+require_once "DBConn.php";
 
-if(!isset($_SESSION['userID'])){
+if (empty($_SESSION['userID'])) {
     header("Location: login.php");
     exit();
 }
 
 $userID = (int)$_SESSION['userID'];
 
-// check admin role from DB
-$ur = $conn->prepare('SELECT role FROM tblUser WHERE userID = ? LIMIT 1');
-$ur->bind_param('i', $userID);
-$ur->execute();
-$r = $ur->get_result()->fetch_assoc();
-$ur->close();
-if (($r['role'] ?? '') !== 'admin') {
-    echo 'Access denied'; exit;
+// check admin role from DB (use bind_result for compatibility)
+$role = '';
+if ($ur = $conn->prepare('SELECT role FROM tblUser WHERE userID = ? LIMIT 1')) {
+    $ur->bind_param('i', $userID);
+    $ur->execute();
+    $ur->bind_result($role);
+    $ur->fetch();
+    $ur->close();
+}
+if (($role ?? '') !== 'admin') {
+    echo 'Access denied';
+    exit;
 }
 
 // handle status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['orderID']) && !empty($_POST['status'])) {
     $oid = (int)$_POST['orderID'];
     $status = $_POST['status'];
-    $u = $conn->prepare('UPDATE tblOrder SET status = ? WHERE orderID = ?');
-    $u->bind_param('si', $status, $oid);
-    $u->execute();
-    $u->close();
+    // determine actual orders table name
+    $orderTable = null;
+    $candidates = ['tblAorder','tblaorder','tblAOrder','tblAorders','tblOrder','tblorder'];
+    foreach ($candidates as $cand) {
+        $tres = $conn->query("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($cand) . "' LIMIT 1");
+        if ($tres && $tres->fetch_row()) { $orderTable = $cand; break; }
+    }
+    if ($orderTable) {
+        $sql = "UPDATE `" . $orderTable . "` SET status = ? WHERE orderID = ?";
+        if ($u = $conn->prepare($sql)) {
+            $u->bind_param('si', $status, $oid);
+            $u->execute();
+            $u->close();
+        }
+    }
     header('Location: admin_orders.php');
     exit;
 }
 
 // load orders
-$orders = $conn->query('SELECT o.orderID, o.userID, o.total, o.status, u.username, u.email FROM tblOrder o JOIN tblUser u ON u.userID = o.userID ORDER BY o.orderID DESC');
+$orderItemsTable = null;
+$candidatesItems = ['tblAorderItems','tblaorderitems','tblAorderitems','tblOrderItems','tblorderitems'];
+foreach ($candidatesItems as $cand) {
+    $tres = $conn->query("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($cand) . "' LIMIT 1");
+    if ($tres && $tres->fetch_row()) { $orderItemsTable = $cand; break; }
+}
+
+$orderTable = $orderTable ?? null;
+if (empty($orderTable)) {
+    // try to find order table if not found earlier
+    $candidates = ['tblAorder','tblaorder','tblAOrder','tblAorders','tblOrder','tblorder'];
+    foreach ($candidates as $cand) {
+        $tres = $conn->query("SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($cand) . "' LIMIT 1");
+        if ($tres && $tres->fetch_row()) { $orderTable = $cand; break; }
+    }
+}
+
+if (empty($orderTable)) {
+    echo 'Orders table not found in database.';
+    exit;
+}
+
+// detect if orders table has a `status` column
+$order_has_status = false;
+$cres = $conn->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" . $conn->real_escape_string($orderTable) . "' AND COLUMN_NAME = 'status'");
+if ($cres) { $crow = $cres->fetch_assoc(); $order_has_status = (!empty($crow['c']) && $crow['c'] > 0); }
+
+$itemsSub = ($orderItemsTable) ? "COALESCE((SELECT SUM(ai.price * ai.quantity) FROM `" . $orderItemsTable . "` ai WHERE ai.orderID = o.orderID), 0) AS total" : "0 AS total";
+$statusSelect = $order_has_status ? 'o.status' : "'' AS status";
+$orders = $conn->query("SELECT o.orderID, o.userID, " . $itemsSub . ", " . $statusSelect . ", u.username, u.email FROM `" . $orderTable . "` o JOIN tblUser u ON u.userID = o.userID ORDER BY o.orderID DESC");
 
 $statuses = ['paid'=>'Payment received','processing'=>'Processing','shipped'=>'Shipped','out_for_delivery'=>'Out for delivery','delivered'=>'Delivered'];
 ?>

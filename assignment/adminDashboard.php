@@ -5,8 +5,8 @@ session_start();
 /* -------------------------
    SECURITY
 -------------------------- */
-if(!isset($_SESSION['adminID'])){
-    header("Location: adminLogin.php");
+if(!isset($_SESSION['userID']) || ($user_role = $_SESSION['user']['role'] ?? '') !== 'admin'){
+    header("Location: login.php");
     exit();
 }
 
@@ -100,7 +100,9 @@ $totalOrders = $conn->query("SELECT COUNT(*) c FROM tblAorder")->fetch_assoc()['
 
     <div class="tb-nav">
         <a href="adminDashboard.php">Dashboard</a>
+        <a href="admin_orders.php">Orders</a>
         <a href="logout.php">Logout</a>
+        
     </div>
 </div>
 

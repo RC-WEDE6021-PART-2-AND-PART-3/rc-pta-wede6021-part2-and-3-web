@@ -176,14 +176,11 @@ if ($clothes->num_rows === 0) {
             <?php endif; ?>
         </div>
 
+<!-- FOOTER -->
+</body>
         <div style="text-align:center; margin:30px 0;">
             <a class="btn cart-btn" href="cart.php">Go to Cart</a>
         </div>
-    </main>
-</div>
-<footer>
-            <p>© 2026 Pastimes Clothing</p>
-        </footer>
     </main>
 </div>
 
